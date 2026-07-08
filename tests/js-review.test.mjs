@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  OUTPUT_SCHEMA,
   matchesAnyGlob,
   parseMentionCommand,
   parseToml,
@@ -70,6 +71,15 @@ exclude = [
 `);
   assert.deepEqual(config.paths.include, ["api/**", "web/**", "package.json"]);
   assert.deepEqual(config.paths.exclude, ["**/node_modules/**", "**/dist/**"]);
+});
+
+test("output schema requires every finding property", () => {
+  const findingSchema = OUTPUT_SCHEMA.properties.findings.items;
+  assert.deepEqual(
+    new Set(findingSchema.required),
+    new Set(Object.keys(findingSchema.properties)),
+  );
+  assert.equal(findingSchema.properties.start_line.type.includes("null"), true);
 });
 
 test("glob matching supports double-star paths", () => {

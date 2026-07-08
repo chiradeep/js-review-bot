@@ -27,7 +27,7 @@ const TRUSTED_PERMISSIONS = new Set(["admin", "maintain", "write"]);
 const ALLOWLISTED_SKILLS = new Set(["security-best-practices"]);
 const ALLOWLISTED_PLUGINS = new Set(["codex-security"]);
 
-const OUTPUT_SCHEMA = {
+export const OUTPUT_SCHEMA = {
   type: "object",
   additionalProperties: false,
   required: ["summary", "findings"],
@@ -42,11 +42,11 @@ const OUTPUT_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["path", "line", "severity", "title", "body"],
+        required: ["path", "line", "start_line", "side", "severity", "title", "body", "confidence"],
         properties: {
           path: { type: "string" },
           line: { type: "integer", minimum: 1 },
-          start_line: { type: "integer", minimum: 1 },
+          start_line: { type: ["integer", "null"], minimum: 1 },
           side: { type: "string", enum: ["RIGHT", "LEFT"] },
           severity: {
             type: "string",
@@ -774,7 +774,9 @@ For fix-ci, read ${CI_CONTEXT_FILE} if it exists. For other commands, ignore thi
 Return:
 
 - summary: a concise summary of the review or fix-ci result.
-- findings: inline findings. Each finding must include path, line, severity, title, and body.
+- findings: inline findings. Each finding must include path, line, start_line, side, severity, title, body, and confidence.
+
+Use start_line only for multi-line RIGHT-side comments; otherwise set start_line to null. Use side "RIGHT" for added/modified lines and "LEFT" for deleted lines.
 
 For clean reviews, return an empty findings array.
 `;
