@@ -55,6 +55,23 @@ push = true
   assert.equal(config.commands["fix-ci"].push, true);
 });
 
+test("parseToml handles multiline arrays", () => {
+  const config = parseToml(`
+[paths]
+include = [
+  "api/**",
+  "web/**", # comment after item
+  "package.json",
+]
+exclude = [
+  "**/node_modules/**",
+  "**/dist/**"
+]
+`);
+  assert.deepEqual(config.paths.include, ["api/**", "web/**", "package.json"]);
+  assert.deepEqual(config.paths.exclude, ["**/node_modules/**", "**/dist/**"]);
+});
+
 test("glob matching supports double-star paths", () => {
   assert.equal(matchesAnyGlob("backend/app/main.py", ["backend/**"]), true);
   assert.equal(matchesAnyGlob("frontend/package-lock.json", ["**/*.lock"]), false);

@@ -415,6 +415,39 @@ function parseTomlValue(raw) {
   return value;
 }
 
+function tomlValueComplete(source) {
+  let quote = "";
+  let escaped = false;
+  let arrayDepth = 0;
+  for (const char of source) {
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === "\\" && quote === '"') {
+      escaped = true;
+      continue;
+    }
+    if ((char === '"' || char === "'") && !quote) {
+      quote = char;
+      continue;
+    }
+    if (char === quote) {
+      quote = "";
+      continue;
+    }
+    if (quote) {
+      continue;
+    }
+    if (char === "[") {
+      arrayDepth += 1;
+    } else if (char === "]") {
+      arrayDepth -= 1;
+    }
+  }
+  return !quote && arrayDepth <= 0;
+}
+
 function setNested(root, pathParts, key, value) {
   let current = root;
   for (const part of pathParts) {
@@ -427,10 +460,19 @@ function setNested(root, pathParts, key, value) {
 export function parseToml(source) {
   const root = {};
   let section = [];
+  let pending = null;
   const lines = source.split(/\r?\n/);
   for (const original of lines) {
     const line = stripTomlComment(original).trim();
     if (!line) continue;
+    if (pending) {
+      pending.value = `${pending.value}\n${line}`;
+      if (tomlValueComplete(pending.value)) {
+        setNested(root, pending.section, pending.key, parseTomlValue(pending.value));
+        pending = null;
+      }
+      continue;
+    }
     if (line.startsWith("[") && line.endsWith("]")) {
       section = line.slice(1, -1).split(".").map((part) => part.trim()).filter(Boolean);
       continue;
@@ -440,8 +482,16 @@ export function parseToml(source) {
       throw new Error(`Invalid TOML line: ${original}`);
     }
     const key = line.slice(0, equals).trim();
-    const value = parseTomlValue(line.slice(equals + 1));
+    const rawValue = line.slice(equals + 1).trim();
+    if (!tomlValueComplete(rawValue)) {
+      pending = { section: [...section], key, value: rawValue };
+      continue;
+    }
+    const value = parseTomlValue(rawValue);
     setNested(root, section, key, value);
+  }
+  if (pending) {
+    throw new Error(`Unterminated TOML value for key: ${pending.key}`);
   }
   return root;
 }
