@@ -157,6 +157,12 @@ jobs:
         with:
           command: install-extensions
 
+      - name: Log js-review context
+        if: steps.context.outputs.should_continue == 'true'
+        uses: chiradeep/js-review-bot/.github/actions/js-review@main
+        with:
+          command: log-context
+
       - name: Collect failed CI context
         if: steps.context.outputs.should_continue == 'true' && needs.gate.outputs.command == 'fix-ci'
         uses: chiradeep/js-review-bot/.github/actions/js-review@main
@@ -193,3 +199,17 @@ jobs:
         with:
           command: post-review
           token: ${{ steps.app-token.outputs.token }}
+
+      - name: Upload js-review diagnostics
+        if: always() && steps.context.outputs.should_continue == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: js-review-${{ needs.gate.outputs.command }}-pr-${{ needs.gate.outputs.pr_number }}-${{ github.run_id }}
+          path: |
+            .js-review/generated/run.json
+            .js-review/generated/prompt.md
+            .js-review/generated/review-output.schema.json
+            .js-review/generated/codex-output.json
+            .js-review/generated/ci-context.md
+          if-no-files-found: ignore
+          retention-days: 7

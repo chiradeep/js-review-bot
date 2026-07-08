@@ -72,6 +72,7 @@ function usage() {
     "  gate",
     "  prepare-run",
     "  install-extensions",
+    "  log-context",
     "  collect-ci",
     "  commit-fix",
     "  post-review",
@@ -927,6 +928,54 @@ async function commandInstallExtensions() {
   }
 }
 
+function commandLogContext() {
+  const run = readJson(RUN_FILE);
+  const homeSkills = path.join(os.homedir(), ".agents", "skills");
+  const skills = run.extensions.skills.length ? run.extensions.skills.join(", ") : "none";
+  const plugins = run.extensions.plugins.length ? run.extensions.plugins.join(", ") : "none";
+  const disallowedSkills = run.disallowed_extensions.skills.length
+    ? run.disallowed_extensions.skills.join(", ")
+    : "none";
+  const disallowedPlugins = run.disallowed_extensions.plugins.length
+    ? run.disallowed_extensions.plugins.join(", ")
+    : "none";
+
+  console.log("js-review-bot context");
+  console.log(`  repository: ${run.repo_full_name}`);
+  console.log(`  pr: #${run.pr_number}`);
+  console.log(`  command: ${run.command}`);
+  console.log(`  model: ${run.model}`);
+  console.log(`  effort: ${run.effort}`);
+  console.log(`  sandbox: ${run.sandbox}`);
+  console.log(`  base: ${run.base_ref} ${run.base_sha}`);
+  console.log(`  head: ${run.head_ref} ${run.head_sha}`);
+  console.log(`  changed_files: ${run.changed_files.join(", ") || "none"}`);
+  console.log(`  enabled_skills: ${skills}`);
+  console.log(`  enabled_plugins: ${plugins}`);
+  console.log(`  disallowed_skills: ${disallowedSkills}`);
+  console.log(`  disallowed_plugins: ${disallowedPlugins}`);
+  for (const skill of run.extensions.skills) {
+    const source =
+      skill === "security-best-practices"
+        ? path.join(".js-review", "extensions", "openai-skills", "skills", ".curated", skill)
+        : "[unknown]";
+    const installed = path.join(homeSkills, skill);
+    console.log(`  skill.${skill}.source: ${source}`);
+    console.log(`  skill.${skill}.installed: ${installed} (${fs.existsSync(installed) ? "present" : "missing"})`);
+  }
+  for (const plugin of run.extensions.plugins) {
+    const source =
+      plugin === "codex-security"
+        ? path.join(".js-review", "extensions", "openai-plugins", "plugins", plugin)
+        : "[unknown]";
+    console.log(`  plugin.${plugin}.source: ${source}`);
+  }
+  console.log(`  run_file: ${RUN_FILE}`);
+  console.log(`  prompt_file: ${PROMPT_FILE}`);
+  console.log(`  schema_file: ${SCHEMA_FILE}`);
+  console.log(`  output_file: ${OUTPUT_FILE}`);
+}
+
 async function commandCollectCi() {
   ensureGeneratedDir();
   const token = env("JS_REVIEW_TOKEN");
@@ -1311,6 +1360,9 @@ async function main() {
         break;
       case "install-extensions":
         await commandInstallExtensions();
+        break;
+      case "log-context":
+        commandLogContext();
         break;
       case "collect-ci":
         await commandCollectCi();
