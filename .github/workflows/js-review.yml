@@ -1,0 +1,190 @@
+name: JS Review Bot
+
+on:
+  workflow_call:
+    inputs:
+      bot_mention:
+        description: "Bot mention used in PR comments."
+        required: false
+        type: string
+        default: "@js-review-bot"
+      config_path:
+        description: "Path to per-repo config."
+        required: false
+        type: string
+        default: ".github/js-review.toml"
+      default_model:
+        description: "Default Codex model."
+        required: false
+        type: string
+        default: "gpt-5.5"
+      default_effort:
+        description: "Default Codex reasoning effort."
+        required: false
+        type: string
+        default: "medium"
+      auto_review_enabled:
+        description: "Run automatic review on pull_request events."
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      OPENAI_API_KEY:
+        required: true
+      JS_REVIEW_BOT_APP_ID:
+        required: true
+      JS_REVIEW_BOT_PRIVATE_KEY:
+        required: true
+
+jobs:
+  gate:
+    name: Gate event
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    outputs:
+      should_run: ${{ steps.gate.outputs.should_run }}
+      reason: ${{ steps.gate.outputs.reason }}
+      command: ${{ steps.gate.outputs.command }}
+      is_command: ${{ steps.gate.outputs.is_command }}
+      pr_number: ${{ steps.gate.outputs.pr_number }}
+      repo_owner: ${{ steps.gate.outputs.repo_owner }}
+      repo_name: ${{ steps.gate.outputs.repo_name }}
+      repo_full_name: ${{ steps.gate.outputs.repo_full_name }}
+      checkout_ref: ${{ steps.gate.outputs.checkout_ref }}
+      base_ref: ${{ steps.gate.outputs.base_ref }}
+      head_ref: ${{ steps.gate.outputs.head_ref }}
+      base_sha: ${{ steps.gate.outputs.base_sha }}
+      head_sha: ${{ steps.gate.outputs.head_sha }}
+      actor: ${{ steps.gate.outputs.actor }}
+    steps:
+      - name: Gate event
+        id: gate
+        uses: JetStreamSecurity/js-review-bot/.github/actions/js-review@main
+        with:
+          command: gate
+          token: ${{ github.token }}
+          bot-mention: ${{ inputs.bot_mention }}
+          auto-review-enabled: ${{ inputs.auto_review_enabled }}
+
+  run:
+    name: Run js-review-bot
+    runs-on: ubuntu-latest
+    needs: gate
+    if: needs.gate.outputs.should_run == 'true'
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      checks: read
+      actions: read
+    steps:
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.JS_REVIEW_BOT_APP_ID }}
+          private-key: ${{ secrets.JS_REVIEW_BOT_PRIVATE_KEY }}
+          owner: ${{ needs.gate.outputs.repo_owner }}
+          repositories: ${{ needs.gate.outputs.repo_name }}
+
+      - name: Checkout target repository
+        uses: actions/checkout@v5
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          ref: ${{ needs.gate.outputs.checkout_ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Fetch PR refs
+        env:
+          PR_NUMBER: ${{ needs.gate.outputs.pr_number }}
+          BASE_REF: ${{ needs.gate.outputs.base_ref }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$BASE_REF" "+refs/pull/$PR_NUMBER/head"
+
+      - name: Prepare Codex run
+        id: context
+        uses: JetStreamSecurity/js-review-bot/.github/actions/js-review@main
+        env:
+          GATE_COMMAND: ${{ needs.gate.outputs.command }}
+          GATE_IS_COMMAND: ${{ needs.gate.outputs.is_command }}
+          GATE_PR_NUMBER: ${{ needs.gate.outputs.pr_number }}
+          GATE_REPO_OWNER: ${{ needs.gate.outputs.repo_owner }}
+          GATE_REPO_NAME: ${{ needs.gate.outputs.repo_name }}
+          GATE_REPO_FULL_NAME: ${{ needs.gate.outputs.repo_full_name }}
+          GATE_BASE_REF: ${{ needs.gate.outputs.base_ref }}
+          GATE_HEAD_REF: ${{ needs.gate.outputs.head_ref }}
+          GATE_BASE_SHA: ${{ needs.gate.outputs.base_sha }}
+          GATE_HEAD_SHA: ${{ needs.gate.outputs.head_sha }}
+          GATE_ACTOR: ${{ needs.gate.outputs.actor }}
+        with:
+          command: prepare-run
+          token: ${{ steps.app-token.outputs.token }}
+          config-path: ${{ inputs.config_path }}
+          default-model: ${{ inputs.default_model }}
+          default-effort: ${{ inputs.default_effort }}
+
+      - name: Checkout OpenAI skills
+        if: steps.context.outputs.should_continue == 'true' && steps.context.outputs.needs_openai_skills == 'true'
+        uses: actions/checkout@v5
+        with:
+          repository: openai/skills
+          ref: main
+          path: .js-review/extensions/openai-skills
+          persist-credentials: false
+
+      - name: Checkout OpenAI plugins
+        if: steps.context.outputs.should_continue == 'true' && steps.context.outputs.needs_openai_plugins == 'true'
+        uses: actions/checkout@v5
+        with:
+          repository: openai/plugins
+          ref: main
+          path: .js-review/extensions/openai-plugins
+          persist-credentials: false
+
+      - name: Install configured skills and plugins
+        if: steps.context.outputs.should_continue == 'true'
+        uses: JetStreamSecurity/js-review-bot/.github/actions/js-review@main
+        with:
+          command: install-extensions
+
+      - name: Collect failed CI context
+        if: steps.context.outputs.should_continue == 'true' && needs.gate.outputs.command == 'fix-ci'
+        uses: JetStreamSecurity/js-review-bot/.github/actions/js-review@main
+        with:
+          command: collect-ci
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Run Codex
+        if: steps.context.outputs.should_continue == 'true'
+        id: run_codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          sandbox: ${{ steps.context.outputs.sandbox }}
+          safety-strategy: drop-sudo
+          prompt-file: .js-review/generated/prompt.md
+          output-file: .js-review/generated/codex-output.json
+          output-schema-file: .js-review/generated/review-output.schema.json
+          model: ${{ steps.context.outputs.model }}
+          effort: ${{ steps.context.outputs.effort }}
+          codex-home: ${{ github.workspace }}/.js-review/codex-home
+
+      - name: Commit and push fix-ci changes
+        if: steps.context.outputs.should_continue == 'true' && needs.gate.outputs.command == 'fix-ci'
+        id: commit_fix
+        uses: JetStreamSecurity/js-review-bot/.github/actions/js-review@main
+        with:
+          command: commit-fix
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Post PR review
+        if: always() && steps.context.outputs.should_continue == 'true'
+        uses: JetStreamSecurity/js-review-bot/.github/actions/js-review@main
+        with:
+          command: post-review
+          token: ${{ steps.app-token.outputs.token }}

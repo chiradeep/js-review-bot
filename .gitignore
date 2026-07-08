@@ -1,0 +1,5 @@
+.DS_Store
+node_modules/
+.js-review/
+coverage/
+npm-debug.log*

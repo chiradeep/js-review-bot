@@ -1,0 +1,20 @@
+name: JS Review Bot
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+  issue_comment:
+    types: [created]
+
+jobs:
+  js-review:
+    uses: JetStreamSecurity/js-review-bot/.github/workflows/js-review.yml@main
+    with:
+      bot_mention: "@js-review-bot"
+      default_model: "gpt-5.5"
+      default_effort: "medium"
+      auto_review_enabled: true
+    secrets:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      JS_REVIEW_BOT_APP_ID: ${{ secrets.JS_REVIEW_BOT_APP_ID }}
+      JS_REVIEW_BOT_PRIVATE_KEY: ${{ secrets.JS_REVIEW_BOT_PRIVATE_KEY }}

@@ -1,0 +1,14 @@
+{
+  "name": "js-review-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Reusable Jetstream PR review bot powered by openai/codex-action.",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check scripts/js-review.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

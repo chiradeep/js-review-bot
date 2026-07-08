@@ -1,0 +1,28 @@
+model = "gpt-5.5"
+effort = "medium"
+clean_review_comment = false
+
+[paths]
+include = ["**"]
+exclude = ["**/*.lock", "**/dist/**", "**/build/**"]
+
+[commands.review]
+enabled = true
+prompt = ".github/js-review/prompts/review.md"
+
+[commands.security-review]
+enabled = true
+skills = ["security-best-practices"]
+
+[commands.adversarial-review]
+enabled = true
+
+[commands.fix-ci]
+enabled = true
+push = true
+
+[skills]
+enabled = []
+
+[plugins]
+enabled = []

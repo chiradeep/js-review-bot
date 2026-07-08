@@ -1,0 +1,46 @@
+name: js-review helper
+description: Internal helper for the Jetstream PR review bot.
+
+inputs:
+  command:
+    description: Helper command to run.
+    required: true
+  token:
+    description: GitHub token.
+    required: false
+    default: ""
+  bot-mention:
+    description: Bot mention.
+    required: false
+    default: "@js-review-bot"
+  auto-review-enabled:
+    description: Enable automatic reviews for pull_request events.
+    required: false
+    default: "true"
+  config-path:
+    description: Per-repo config path.
+    required: false
+    default: ".github/js-review.toml"
+  default-model:
+    description: Default model.
+    required: false
+    default: "gpt-5.5"
+  default-effort:
+    description: Default reasoning effort.
+    required: false
+    default: "medium"
+
+runs:
+  using: composite
+  steps:
+    - name: Run helper
+      shell: bash
+      env:
+        JS_REVIEW_COMMAND: ${{ inputs.command }}
+        JS_REVIEW_TOKEN: ${{ inputs.token }}
+        JS_REVIEW_BOT_MENTION: ${{ inputs.bot-mention }}
+        JS_REVIEW_AUTO_REVIEW_ENABLED: ${{ inputs.auto-review-enabled }}
+        JS_REVIEW_CONFIG_PATH: ${{ inputs.config-path }}
+        JS_REVIEW_DEFAULT_MODEL: ${{ inputs.default-model }}
+        JS_REVIEW_DEFAULT_EFFORT: ${{ inputs.default-effort }}
+      run: node "$GITHUB_ACTION_PATH/../../../scripts/js-review.mjs" "$JS_REVIEW_COMMAND"
