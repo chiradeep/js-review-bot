@@ -100,6 +100,15 @@ outputs:
   commit_sha:
     description: fix-ci pushed commit SHA.
     value: ${{ steps.helper.outputs.commit_sha }}
+  token:
+    description: GitHub App installation token.
+    value: ${{ steps.helper.outputs.token }}
+  installation_id:
+    description: GitHub App installation ID.
+    value: ${{ steps.helper.outputs.installation_id }}
+  expires_at:
+    description: GitHub App token expiry timestamp.
+    value: ${{ steps.helper.outputs.expires_at }}
 
 runs:
   using: composite

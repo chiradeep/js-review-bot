@@ -69,6 +69,8 @@ function usage() {
     "Usage: node scripts/js-review.mjs <command>",
     "",
     "Commands:",
+    "  app-token",
+    "  revoke-app-token",
     "  gate",
     "  prepare-run",
     "  install-extensions",
@@ -99,6 +101,12 @@ function setOutput(name, value) {
     fs.appendFileSync(outputPath, `${name}<<__JS_REVIEW__\n${normalized}\n__JS_REVIEW__\n`);
   } else {
     console.log(`${name}=${normalized}`);
+  }
+}
+
+function maskSecret(value) {
+  if (value) {
+    console.log(`::add-mask::${value}`);
   }
 }
 
@@ -170,6 +178,103 @@ async function githubApiPaginated(token, apiPath) {
     page += 1;
   }
   return results;
+}
+
+function base64Url(value) {
+  return Buffer.from(value)
+    .toString("base64")
+    .replaceAll("=", "")
+    .replaceAll("+", "-")
+    .replaceAll("/", "_");
+}
+
+function normalizePrivateKey(value) {
+  return value.includes("\\n") ? value.replaceAll("\\n", "\n") : value;
+}
+
+function githubAppJwt(appId, privateKey) {
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64Url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const payload = base64Url(JSON.stringify({ iat: now - 60, exp: now + 540, iss: appId }));
+  const data = `${header}.${payload}`;
+  const signature = crypto.sign("RSA-SHA256", Buffer.from(data), normalizePrivateKey(privateKey));
+  return `${data}.${base64Url(signature)}`;
+}
+
+async function githubApiWithAuth(authValue, method, apiPath, body = undefined) {
+  const response = await fetch(`https://api.github.com${apiPath}`, {
+    method,
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: authValue,
+      "X-GitHub-Api-Version": "2022-11-28",
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const text = await response.text();
+  let parsed = null;
+  if (text) {
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = text;
+    }
+  }
+  if (!response.ok) {
+    throw new Error(`GitHub API ${method} ${apiPath} failed: ${response.status} ${text}`);
+  }
+  return parsed;
+}
+
+async function commandAppToken() {
+  const appId = env("JS_REVIEW_APP_ID");
+  const privateKey = env("JS_REVIEW_PRIVATE_KEY");
+  const owner = env("JS_REVIEW_TOKEN_OWNER");
+  const repository = env("JS_REVIEW_TOKEN_REPOSITORY");
+  if (!appId || !privateKey || !owner || !repository) {
+    throw new Error("JS_REVIEW_APP_ID, JS_REVIEW_PRIVATE_KEY, JS_REVIEW_TOKEN_OWNER, and JS_REVIEW_TOKEN_REPOSITORY are required");
+  }
+
+  const jwt = githubAppJwt(appId, privateKey);
+  const installation = await githubApiWithAuth(
+    `Bearer ${jwt}`,
+    "GET",
+    `/repos/${owner}/${repository}/installation`,
+  );
+  const token = await githubApiWithAuth(
+    `Bearer ${jwt}`,
+    "POST",
+    `/app/installations/${installation.id}/access_tokens`,
+    {
+      repositories: [repository],
+      permissions: {
+        actions: "read",
+        checks: "read",
+        contents: "write",
+        issues: "write",
+        pull_requests: "write",
+      },
+    },
+  );
+  maskSecret(token.token);
+  setOutputs({
+    token: token.token,
+    installation_id: installation.id,
+    expires_at: token.expires_at ?? "",
+  });
+}
+
+async function commandRevokeAppToken() {
+  const token = env("JS_REVIEW_TOKEN");
+  if (!token) {
+    return;
+  }
+  try {
+    await githubApiWithAuth(`Bearer ${token}`, "DELETE", "/installation/token");
+  } catch (error) {
+    console.warn(`Could not revoke GitHub App token: ${error.message}`);
+  }
 }
 
 function splitRepo(fullName) {
@@ -1352,6 +1457,12 @@ async function main() {
   const command = process.argv[2];
   try {
     switch (command) {
+      case "app-token":
+        await commandAppToken();
+        break;
+      case "revoke-app-token":
+        await commandRevokeAppToken();
+        break;
       case "gate":
         await commandGate();
         break;

@@ -83,12 +83,14 @@ jobs:
     steps:
       - name: Create GitHub App token
         id: app-token
-        uses: actions/create-github-app-token@v2
+        uses: chiradeep/js-review-bot/.github/actions/js-review@main
+        env:
+          JS_REVIEW_APP_ID: ${{ secrets.JS_REVIEW_BOT_APP_ID }}
+          JS_REVIEW_PRIVATE_KEY: ${{ secrets.JS_REVIEW_BOT_PRIVATE_KEY }}
+          JS_REVIEW_TOKEN_OWNER: ${{ needs.gate.outputs.repo_owner }}
+          JS_REVIEW_TOKEN_REPOSITORY: ${{ needs.gate.outputs.repo_name }}
         with:
-          app-id: ${{ secrets.JS_REVIEW_BOT_APP_ID }}
-          private-key: ${{ secrets.JS_REVIEW_BOT_PRIVATE_KEY }}
-          owner: ${{ needs.gate.outputs.repo_owner }}
-          repositories: ${{ needs.gate.outputs.repo_name }}
+          command: app-token
 
       - name: Checkout target repository
         uses: actions/checkout@v5
@@ -202,7 +204,7 @@ jobs:
 
       - name: Upload js-review diagnostics
         if: always() && steps.context.outputs.should_continue == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: js-review-${{ needs.gate.outputs.command }}-pr-${{ needs.gate.outputs.pr_number }}-${{ github.run_id }}
           path: |
@@ -212,4 +214,12 @@ jobs:
             .js-review/generated/codex-output.json
             .js-review/generated/ci-context.md
           if-no-files-found: ignore
+          include-hidden-files: true
           retention-days: 7
+
+      - name: Revoke GitHub App token
+        if: always() && steps.app-token.outputs.token != ''
+        uses: chiradeep/js-review-bot/.github/actions/js-review@main
+        with:
+          command: revoke-app-token
+          token: ${{ steps.app-token.outputs.token }}
