@@ -230,7 +230,7 @@ async function commandGate() {
   const token = env("JS_REVIEW_TOKEN");
   const payload = readJson(env("GITHUB_EVENT_PATH"));
   const eventName = env("GITHUB_EVENT_NAME");
-  const repoFullName = env("GITHUB_REPOSITORY");
+  const repoFullName = payload.repository?.full_name ?? env("GITHUB_REPOSITORY");
   const { owner, name } = splitRepo(repoFullName);
   const botMention = env("JS_REVIEW_BOT_MENTION", "@js-review-bot");
   const autoReviewEnabled = envBool("JS_REVIEW_AUTO_REVIEW_ENABLED", true);
@@ -320,6 +320,7 @@ function gateOutputs(shouldRun, reason, context = {}) {
     head_sha: prInfo.headSha ?? "",
     actor: context.actor ?? "",
   };
+  console.log(`js-review-bot gate: should_run=${outputs.should_run} reason="${reason}" command="${outputs.command}" repo="${outputs.repo_full_name}" actor="${outputs.actor}"`);
   setOutputs(outputs);
   return outputs;
 }
