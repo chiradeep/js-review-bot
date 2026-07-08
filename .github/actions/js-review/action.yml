@@ -30,10 +30,82 @@ inputs:
     required: false
     default: "medium"
 
+outputs:
+  should_run:
+    description: Gate result for whether the bot should run.
+    value: ${{ steps.helper.outputs.should_run }}
+  reason:
+    description: Gate decision reason.
+    value: ${{ steps.helper.outputs.reason }}
+  command:
+    description: Selected bot command.
+    value: ${{ steps.helper.outputs.command }}
+  is_command:
+    description: Whether the run came from an issue comment command.
+    value: ${{ steps.helper.outputs.is_command }}
+  pr_number:
+    description: Pull request number.
+    value: ${{ steps.helper.outputs.pr_number }}
+  repo_owner:
+    description: Repository owner.
+    value: ${{ steps.helper.outputs.repo_owner }}
+  repo_name:
+    description: Repository name.
+    value: ${{ steps.helper.outputs.repo_name }}
+  repo_full_name:
+    description: Repository full name.
+    value: ${{ steps.helper.outputs.repo_full_name }}
+  checkout_ref:
+    description: Ref to check out for the bot run.
+    value: ${{ steps.helper.outputs.checkout_ref }}
+  base_ref:
+    description: Pull request base ref.
+    value: ${{ steps.helper.outputs.base_ref }}
+  head_ref:
+    description: Pull request head ref.
+    value: ${{ steps.helper.outputs.head_ref }}
+  base_sha:
+    description: Pull request base SHA.
+    value: ${{ steps.helper.outputs.base_sha }}
+  head_sha:
+    description: Pull request head SHA.
+    value: ${{ steps.helper.outputs.head_sha }}
+  actor:
+    description: Triggering actor.
+    value: ${{ steps.helper.outputs.actor }}
+  should_continue:
+    description: Prepare-run result for whether Codex should continue.
+    value: ${{ steps.helper.outputs.should_continue }}
+  skip_reason:
+    description: Prepare-run skip reason.
+    value: ${{ steps.helper.outputs.skip_reason }}
+  model:
+    description: Model selected for Codex.
+    value: ${{ steps.helper.outputs.model }}
+  effort:
+    description: Reasoning effort selected for Codex.
+    value: ${{ steps.helper.outputs.effort }}
+  sandbox:
+    description: Codex sandbox selected for the run.
+    value: ${{ steps.helper.outputs.sandbox }}
+  needs_openai_skills:
+    description: Whether OpenAI skills checkout is needed.
+    value: ${{ steps.helper.outputs.needs_openai_skills }}
+  needs_openai_plugins:
+    description: Whether OpenAI plugins checkout is needed.
+    value: ${{ steps.helper.outputs.needs_openai_plugins }}
+  pushed:
+    description: Whether fix-ci pushed a commit.
+    value: ${{ steps.helper.outputs.pushed }}
+  commit_sha:
+    description: fix-ci pushed commit SHA.
+    value: ${{ steps.helper.outputs.commit_sha }}
+
 runs:
   using: composite
   steps:
     - name: Run helper
+      id: helper
       shell: bash
       env:
         JS_REVIEW_COMMAND: ${{ inputs.command }}
