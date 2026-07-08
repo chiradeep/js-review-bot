@@ -62,7 +62,7 @@ jobs:
     steps:
       - name: Gate event
         id: gate
-        uses: JetStreamSecurity/js-review-bot/.github/actions/js-review@main
+        uses: chiradeep/js-review-bot/.github/actions/js-review@main
         with:
           command: gate
           token: ${{ github.token }}
@@ -108,7 +108,7 @@ jobs:
 
       - name: Prepare Codex run
         id: context
-        uses: JetStreamSecurity/js-review-bot/.github/actions/js-review@main
+        uses: chiradeep/js-review-bot/.github/actions/js-review@main
         env:
           GATE_COMMAND: ${{ needs.gate.outputs.command }}
           GATE_IS_COMMAND: ${{ needs.gate.outputs.is_command }}
@@ -148,13 +148,13 @@ jobs:
 
       - name: Install configured skills and plugins
         if: steps.context.outputs.should_continue == 'true'
-        uses: JetStreamSecurity/js-review-bot/.github/actions/js-review@main
+        uses: chiradeep/js-review-bot/.github/actions/js-review@main
         with:
           command: install-extensions
 
       - name: Collect failed CI context
         if: steps.context.outputs.should_continue == 'true' && needs.gate.outputs.command == 'fix-ci'
-        uses: JetStreamSecurity/js-review-bot/.github/actions/js-review@main
+        uses: chiradeep/js-review-bot/.github/actions/js-review@main
         with:
           command: collect-ci
           token: ${{ steps.app-token.outputs.token }}
@@ -177,14 +177,14 @@ jobs:
       - name: Commit and push fix-ci changes
         if: steps.context.outputs.should_continue == 'true' && needs.gate.outputs.command == 'fix-ci'
         id: commit_fix
-        uses: JetStreamSecurity/js-review-bot/.github/actions/js-review@main
+        uses: chiradeep/js-review-bot/.github/actions/js-review@main
         with:
           command: commit-fix
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Post PR review
         if: always() && steps.context.outputs.should_continue == 'true'
-        uses: JetStreamSecurity/js-review-bot/.github/actions/js-review@main
+        uses: chiradeep/js-review-bot/.github/actions/js-review@main
         with:
           command: post-review
           token: ${{ steps.app-token.outputs.token }}
