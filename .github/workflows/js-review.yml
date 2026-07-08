@@ -100,11 +100,16 @@ jobs:
 
       - name: Fetch PR refs
         env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_NUMBER: ${{ needs.gate.outputs.pr_number }}
           BASE_REF: ${{ needs.gate.outputs.base_ref }}
         run: |
           set -euo pipefail
-          git fetch --no-tags origin "$BASE_REF" "+refs/pull/$PR_NUMBER/head"
+          AUTH_HEADER="$(printf 'x-access-token:%s' "$APP_TOKEN" | base64 | tr -d '\n')"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${AUTH_HEADER}" \
+            fetch --no-tags origin \
+            "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF" \
+            "+refs/pull/$PR_NUMBER/head:refs/remotes/pull/$PR_NUMBER/head"
 
       - name: Prepare Codex run
         id: context
