@@ -75,9 +75,9 @@ jobs:
     needs: gate
     if: needs.gate.outputs.should_run == 'true'
     permissions:
-      contents: write
-      pull-requests: write
-      issues: write
+      contents: read
+      pull-requests: read
+      issues: read
       checks: read
       actions: read
     steps:
