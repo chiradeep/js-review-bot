@@ -1,8 +1,8 @@
-	# js-review-bot
+# js-review-bot
 
-Reusable Jetstream PR review bot powered by `openai/codex-action`.
+Reusable JetStream PR review bot powered by `openai/codex-action`.
 
-The bot is designed to run across Jetstream repositories through a shared reusable workflow. Each target repo adds a small caller workflow and can optionally customize behavior with `.github/js-review.toml`, `.github/js-review/prompts/*.md`, and repo `AGENTS.md` files.
+The bot is designed to run across JetStream repositories through a shared reusable workflow. Each target repo adds a small caller workflow and can optionally customize behavior with `.github/js-review.toml`, `.github/js-review/prompts/*.md`, and repo `AGENTS.md` files.
 
 ## What It Does
 
@@ -12,11 +12,12 @@ The bot is designed to run across Jetstream repositories through a shared reusab
 - Posts valid findings as inline PR review comments.
 - Includes reviewed commit, model, reasoning effort, enabled extensions, command help, and priority labels in review output.
 - Allows `fix-ci` to edit, commit, and push to the PR branch.
-- Uses repo-local config and base-branch `AGENTS.md` guidance.
+- Uses base-branch repo config, prompt addenda, and `AGENTS.md` / `AGENTS.override.md` guidance.
+- Uploads short-lived diagnostics artifacts with the generated prompt, run metadata, schema, Codex output, and CI context.
 
 ## GitHub App
 
-Create a GitHub App named `js-review-bot` and install it on the Jetstream repos that should use the bot.
+Create a GitHub App named `js-review-bot` and install it on the JetStream repos that should use the bot.
 
 Required repository permissions:
 
@@ -29,7 +30,7 @@ Required repository permissions:
 
 Webhook delivery is not required for v1 because GitHub Actions events trigger the workflow. The App is used for least-privilege installation tokens and for comments that appear as `js-review-bot[bot]`.
 
-Add these as organization secrets available to the Jetstream repos that use the bot:
+Add these as organization secrets available to the JetStream repos that use the bot. Repository secrets also work for one-off setup or testing:
 
 - `OPENAI_API_KEY`
 - `JS_REVIEW_BOT_APP_ID`
@@ -52,6 +53,12 @@ on:
 
 jobs:
   js-review:
+    permissions:
+      actions: read
+      checks: read
+      contents: read
+      issues: read
+      pull-requests: read
     uses: JetStreamSecurity/js-review-bot/.github/workflows/js-review.yml@main
     with:
       bot_mention: "@js-review-bot"
@@ -63,6 +70,8 @@ jobs:
       JS_REVIEW_BOT_APP_ID: ${{ secrets.JS_REVIEW_BOT_APP_ID }}
       JS_REVIEW_BOT_PRIVATE_KEY: ${{ secrets.JS_REVIEW_BOT_PRIVATE_KEY }}
 ```
+
+The explicit `permissions` block is required because caller workflows can restrict the permissions available to reusable workflow jobs.
 
 See `examples/js-review.toml` for optional per-repo customization.
 
@@ -95,13 +104,13 @@ enabled = true
 push = true
 
 [skills]
-enabled = ["security-best-practices"]
+enabled = []
 
 [plugins]
-enabled = ["codex-security"]
+enabled = []
 ```
 
-Prompt files are addenda. They cannot replace the central safety and output-format instructions.
+Prompt files are addenda. They cannot replace the central safety and output-format instructions. Config, prompt addenda, and AGENTS guidance are read from the pull request base branch for safety, not from untrusted PR changes.
 
 ## Security Model
 
