@@ -8,6 +8,12 @@ on:
 
 jobs:
   js-review:
+    permissions:
+      actions: read
+      checks: read
+      contents: read
+      issues: read
+      pull-requests: read
     uses: JetStreamSecurity/js-review-bot/.github/workflows/js-review.yml@main
     with:
       bot_mention: "@js-review-bot"

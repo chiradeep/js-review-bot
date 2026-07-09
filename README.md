@@ -114,7 +114,7 @@ Prompt files are addenda. They cannot replace the central safety and output-form
 
 ## Security Model
 
-- The gate job uses only the default GitHub token and read permissions.
+- The first step gates the event with the default GitHub token before checkout, App-token creation, or Codex execution.
 - The GitHub App token and `OPENAI_API_KEY` are only used after the trust gate passes.
 - Fork PRs are skipped.
 - Actors must have `write`, `maintain`, or `admin` permission.
