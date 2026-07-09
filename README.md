@@ -10,6 +10,7 @@ The bot is designed to run across Jetstream repositories through a shared reusab
 - Responds to `@js-review-bot review`, `@js-review-bot security-review`, `@js-review-bot adversarial-review`, and `@js-review-bot fix-ci`.
 - Skips fork PRs and untrusted contributors before Codex runs.
 - Posts valid findings as inline PR review comments.
+- Includes reviewed commit, model, reasoning effort, enabled extensions, command help, and priority labels in review output.
 - Allows `fix-ci` to edit, commit, and push to the PR branch.
 - Uses repo-local config and base-branch `AGENTS.md` guidance.
 

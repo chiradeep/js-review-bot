@@ -1329,14 +1329,56 @@ function findingMarker(finding) {
   return `js-review-bot:finding:${hash}`;
 }
 
-function reviewCommentBody(finding, marker) {
+export function priorityLabelForSeverity(severity) {
+  switch (String(severity ?? "").toLowerCase()) {
+    case "critical":
+      return "P1";
+    case "high":
+      return "P2";
+    case "medium":
+      return "P3";
+    case "low":
+      return "P4";
+    case "info":
+      return "P5";
+    default:
+      return "P3";
+  }
+}
+
+function commandTitle(command) {
+  switch (command) {
+    case "security-review":
+      return "JS Security Review";
+    case "adversarial-review":
+      return "JS Adversarial Review";
+    case "fix-ci":
+      return "JS Fix CI";
+    case "review":
+    default:
+      return "JS Review";
+  }
+}
+
+function shortSha(sha) {
+  return String(sha ?? "").slice(0, 10) || "unknown";
+}
+
+function extensionList(values) {
+  return Array.isArray(values) && values.length > 0 ? values.join(", ") : "none";
+}
+
+export function reviewCommentBody(finding, marker) {
+  const priority = priorityLabelForSeverity(finding.severity);
   return [
     `<!-- ${marker} -->`,
-    `**${finding.severity.toUpperCase()}: ${finding.title}**`,
+    `**${priority} ${finding.title}**`,
     "",
     finding.body,
     "",
-    `_confidence: ${finding.confidence}_`,
+    `_Severity: ${finding.severity}; confidence: ${finding.confidence}._`,
+    "",
+    "Useful? React with GitHub's thumbs-up or thumbs-down reactions.",
   ].join("\n");
 }
 
@@ -1424,13 +1466,39 @@ async function commandPostReview() {
   }
 }
 
-function summaryBody(run, result, invalidFindings, postedCount) {
+export function summaryBody(run, result, invalidFindings, postedCount) {
   const marker = `js-review-bot:run:${run.command}:${run.head_sha}`;
   const lines = [
     `<!-- ${marker} -->`,
-    `## js-review-bot ${run.command}`,
+    `## ${commandTitle(run.command)}`,
     "",
     result.summary || "No summary returned.",
+    "",
+    `**Reviewed commit:** \`${shortSha(run.head_sha)}\``,
+    "",
+    "<details>",
+    "<summary>About js-review-bot in GitHub</summary>",
+    "",
+    "Reviews are triggered when you:",
+    "",
+    "- Open or update a trusted pull request.",
+    "- Mark a trusted draft pull request as ready.",
+    "- Comment `@js-review-bot review`.",
+    "",
+    "Supported commands:",
+    "",
+    "- `@js-review-bot review`",
+    "- `@js-review-bot security-review`",
+    "- `@js-review-bot adversarial-review`",
+    "- `@js-review-bot fix-ci`",
+    "",
+    `Command: \`${run.command}\``,
+    `Model: \`${run.model || "default"}\``,
+    `Reasoning effort: \`${run.effort || "default"}\``,
+    `Skills: \`${extensionList(run.extensions?.skills)}\``,
+    `Plugins: \`${extensionList(run.extensions?.plugins)}\``,
+    "",
+    "</details>",
     "",
     `Inline comments posted: ${postedCount}`,
   ];

@@ -7,6 +7,9 @@ import {
   parseMentionCommand,
   parseToml,
   parseUnifiedDiff,
+  priorityLabelForSeverity,
+  reviewCommentBody,
+  summaryBody,
 } from "../scripts/js-review.mjs";
 
 test("parseMentionCommand extracts supported commands", () => {
@@ -118,4 +121,58 @@ deleted file mode 100644
   const index = parseUnifiedDiff(diff);
   assert.equal(index.left.get("old.js").has(1), true);
   assert.equal(index.left.get("old.js").has(2), true);
+});
+
+test("priorityLabelForSeverity maps severities to review priorities", () => {
+  assert.equal(priorityLabelForSeverity("critical"), "P1");
+  assert.equal(priorityLabelForSeverity("high"), "P2");
+  assert.equal(priorityLabelForSeverity("medium"), "P3");
+  assert.equal(priorityLabelForSeverity("low"), "P4");
+  assert.equal(priorityLabelForSeverity("info"), "P5");
+  assert.equal(priorityLabelForSeverity("unexpected"), "P3");
+});
+
+test("reviewCommentBody includes priority, metadata, and feedback prompt", () => {
+  const body = reviewCommentBody(
+    {
+      severity: "critical",
+      title: "Avoid deleting valid grants",
+      body: "Re-read the stored token before deleting this grant.",
+      confidence: "high",
+    },
+    "js-review-bot:finding:abc123",
+  );
+
+  assert.match(body, /<!-- js-review-bot:finding:abc123 -->/);
+  assert.match(body, /\*\*P1 Avoid deleting valid grants\*\*/);
+  assert.match(body, /Re-read the stored token before deleting this grant\./);
+  assert.match(body, /Severity: critical; confidence: high/);
+  assert.match(body, /Useful\? React with GitHub's thumbs-up or thumbs-down reactions\./);
+});
+
+test("summaryBody includes reviewed commit, command help, and run metadata", () => {
+  const body = summaryBody(
+    {
+      command: "security-review",
+      head_sha: "b2375c4108abcdef",
+      model: "gpt-5.5",
+      effort: "medium",
+      extensions: {
+        skills: ["security-best-practices"],
+        plugins: ["codex-security"],
+      },
+    },
+    { summary: "Found one issue." },
+    [],
+    1,
+  );
+
+  assert.match(body, /## JS Security Review/);
+  assert.match(body, /\*\*Reviewed commit:\*\* `b2375c4108`/);
+  assert.match(body, /<summary>About js-review-bot in GitHub<\/summary>/);
+  assert.match(body, /`@js-review-bot fix-ci`/);
+  assert.match(body, /Model: `gpt-5\.5`/);
+  assert.match(body, /Skills: `security-best-practices`/);
+  assert.match(body, /Plugins: `codex-security`/);
+  assert.match(body, /Inline comments posted: 1/);
 });
